@@ -216,25 +216,30 @@ function spineTone(seed) {
   return hash % SPINE_TONES;
 }
 
+const PLACEHOLDER_SIZES = [[128, 170], [256, 340]];
+
 function openLibraryCover(isbn) {
-  return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false` : "";
+  return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false` : "";
+}
+
+function apiCover(isbn) {
+  return isbn ? `/api/cover?isbn=${isbn}` : "";
 }
 
 function coverCandidates(book) {
-  return [book.coverUrl, openLibraryCover(book.isbn)].filter(Boolean);
+  return [book.coverUrl, apiCover(book.isbn), openLibraryCover(book.isbn)].filter(Boolean);
 }
 
 function googleBooksUrl(isbn) {
   return isbn ? `https://books.google.com/books?vid=ISBN${isbn}` : "";
 }
 
+function isPlaceholder(image) {
+  return PLACEHOLDER_SIZES.some(([width, height]) => image.naturalWidth === width && image.naturalHeight === height);
+}
+
 function loadCover(image, candidates, { onReady, onEmpty }) {
   let index = 0;
-
-  const reveal = () => {
-    image.hidden = false;
-    onReady();
-  };
 
   const next = () => {
     if (index >= candidates.length) {
@@ -246,12 +251,28 @@ function loadCover(image, candidates, { onReady, onEmpty }) {
 
     const url = candidates[index];
     index += 1;
+    let settled = false;
 
-    image.onload = reveal;
-    image.onerror = next;
+    const settle = (usable) => {
+      if (settled) return;
+      settled = true;
+
+      if (usable) {
+        image.hidden = false;
+        onReady();
+        return;
+      }
+
+      next();
+    };
+
+    const accept = () => settle(image.naturalWidth > 0 && !isPlaceholder(image));
+
+    image.onload = accept;
+    image.onerror = () => settle(false);
     image.src = url;
 
-    if (image.complete && image.naturalWidth > 0) reveal();
+    if (image.complete) accept();
   };
 
   next();
@@ -273,8 +294,8 @@ function syncSheetAccess() {
 
 function renderCoverPreview() {
   const isbn = normalizeIsbn(dom.isbn.value);
-  const derived = isbn && inspectIsbn(isbn).valid ? openLibraryCover(isbn) : "";
-  const candidates = [state.coverUrl, derived].filter(Boolean);
+  const derived = isbn && inspectIsbn(isbn).valid ? [apiCover(isbn), openLibraryCover(isbn)] : [];
+  const candidates = [state.coverUrl, ...derived].filter(Boolean);
 
   if (candidates.length === 0) {
     dom.coverPreview.hidden = true;
