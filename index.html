@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <meta name="description"
+        content="Katalog dan inventaris buku perpustakaan sekolah dengan pengisian otomatis dari ISBN.">
+    <title>Katalog Buku Perpustakaan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style type="text/tailwindcss">
+        @theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader", ui-serif, Georgia, serif;
+  --color-paper: #f6f4ef;
+  --color-surface: #fffefc;
+  --color-ink: #1b1a18;
+  --color-muted: #6c665f;
+  --color-faint: #a09a91;
+  --color-line: #e7e2d9;
+  --color-line-strong: #d5cec2;
+  --color-accent: #1e4c40;
+  --color-accent-strong: #163a31;
+  --color-accent-soft: #e9efec;
+  --color-danger: #9c2f27;
+  --color-danger-soft: #f8ecea;
+  --color-warn: #8a6420;
+  --color-stage: #14130f;
+}
+</style>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="min-h-dvh bg-paper font-sans text-ink">
+
+    <div id="protocolNotice" hidden class="border-b border-danger/25 bg-danger-soft">
+        <p class="mx-auto max-w-6xl px-5 py-3 text-[13px] leading-relaxed text-danger sm:px-8">
+            Aplikasi ini perlu dijalankan lewat server lokal. Jalankan
+            <code class="rounded bg-surface/70 px-1.5 py-0.5 font-mono text-[12px]">python3 -m http.server</code>
+            di folder project, lalu buka
+            <code class="rounded bg-surface/70 px-1.5 py-0.5 font-mono text-[12px]">http://localhost:8000</code>.
+        </p>
+    </div>
+
+    <header class="sticky top-0 z-20 border-b border-line bg-surface/85 backdrop-blur-md">
+        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
+            <div class="flex items-center gap-3">
+                
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.18em] text-faint">Perpustakaan Sekolah</p>
+                    <h1 class="font-serif text-[19px] leading-tight">Katalog Buku</h1>
+                </div>
+            </div>
+            <p class="hidden text-xs text-faint sm:block">Data tersimpan di browser perangkat ini</p>
+        </div>
+    </header>
+``
+    <section class="border-b border-line bg-surface">
+        <dl class="mx-auto grid max-w-6xl grid-cols-3 divide-x divide-line px-5 sm:px-8">
+            <div class="py-3.5 pr-4 sm:py-4">
+                <dt class="text-[10px] uppercase tracking-[0.16em] text-faint">Total Buku</dt>
+                <dd id="total" class="mt-1 font-serif text-[26px] leading-none tabular-nums sm:text-[28px]">0</dd>
+            </div>
+            <div class="px-4 py-3.5 sm:py-4">
+                <dt class="text-[10px] uppercase tracking-[0.16em] text-faint">Kategori</dt>
+                <dd id="cats" class="mt-1 font-serif text-[26px] leading-none tabular-nums sm:text-[28px]">0</dd>
+            </div>
+            <div class="py-3.5 pl-4 sm:py-4">
+                <dt class="text-[10px] uppercase tracking-[0.16em] text-faint">Rak Terpakai</dt>
+                <dd id="shelves" class="mt-1 font-serif text-[26px] leading-none tabular-nums sm:text-[28px]">0</dd>
+            </div>
+        </dl>
+    </section>
+
+    <main
+        class="mx-auto grid max-w-6xl gap-8 px-5 py-7 sm:px-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-10 lg:py-10">
+
+        <section id="formSheet" class="form-sheet" aria-labelledby="formHeading">
+            <div class="sheet-grip" aria-hidden="true"></div>
+
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 id="formHeading" class="font-serif text-xl leading-tight">Tambah Buku</h2>
+                    <p id="formHint" class="mt-1 text-[13px] leading-relaxed text-muted">Pindai ISBN untuk mengisi
+                        otomatis, atau isi manual.</p>
+                </div>
+                <div class="flex shrink-0 items-center gap-1">
+                    <button id="cancelEdit" type="button" hidden class="btn btn-ghost btn-sm">Batal</button>
+                    <button id="sheetClose" type="button" class="icon-btn sheet-close" aria-label="Tutup formulir">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                            stroke-linecap="round" aria-hidden="true">
+                            <path d="M6 6l12 12M18 6 6 18" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <button id="scanButton" type="button" class="scan-cta mt-5">
+                <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                    <path d="M4 6v12M8 6v12M12 6v12M16 6v12M20 6v12" />
+                </svg>
+                Pindai barcode ISBN
+            </button>
+
+            <p id="sourceBadge" hidden class="badge mt-4">
+                <span id="sourceBadgeText"></span>
+                <button id="clearLookup" type="button" class="badge-action">Kosongkan</button>
+            </p>
+
+            <form id="bookForm" class="mt-4 space-y-4" novalidate>
+                <div>
+                    <label for="title" class="field-label">Judul <span class="text-danger">*</span></label>
+                    <input id="title" name="title" type="text" class="field" placeholder="Contoh: Laskar Pelangi"
+                        autocomplete="off" required>
+                    <p id="titleError" hidden class="mt-1.5 text-[12px] text-danger"></p>
+                </div>
+
+                <div>
+                    <label for="author" class="field-label">Penulis</label>
+                    <input id="author" name="author" type="text" class="field" placeholder="Nama penulis"
+                        autocomplete="off">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3.5">
+                    <div>
+                        <label for="category" class="field-label">Kategori</label>
+                        <select id="category" name="category" class="field">
+                            <option value="">Belum dipilih</option>
+                            <option value="Kesusastraan">Kesusastraan</option>
+                            <option value="Ilmu Pengetahuan">Ilmu Pengetahuan</option>
+                            <option value="Matematika">Matematika</option>
+                            <option value="Teknologi">Teknologi</option>
+                            <option value="Pendidikan">Pendidikan</option>
+                            <option value="Agama">Agama</option>
+                            <option value="Geografi &amp; Sejarah">Geografi &amp; Sejarah</option>
+                            <option value="Bahasa &amp; Linguistik">Bahasa &amp; Linguistik</option>
+                            <option value="Sosial">Sosial</option>
+                            <option value="Lainnya">Lainnya</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="shelf" class="field-label">Rak</label>
+                        <input id="shelf" name="shelf" type="text" class="field" placeholder="A-3" autocomplete="off">
+                    </div>
+                </div>
+
+                <div id="categoryHint" hidden class="hint">
+                    <span id="categoryHintText"></span>
+                    <button id="categoryHintApply" type="button" class="hint-action">Pakai</button>
+                </div>
+
+                <div>
+                    <label for="isbn" class="field-label">ISBN</label>
+                    <div class="flex gap-2">
+                        <input id="isbn" name="isbn" type="text" class="field" placeholder="9786020383647"
+                            inputmode="numeric" autocomplete="off">
+                        <button id="lookupButton" type="button" class="btn btn-ghost shrink-0">Cari</button>
+                    </div>
+                    <p id="dupNotice" hidden class="notice"></p>
+                    <p id="lookupStatus" hidden class="notice"></p>
+                </div>
+
+                <div id="coverPreview" hidden class="cover-preview">
+                    <img id="coverImage" alt="Pratinjau sampul buku" referrerpolicy="no-referrer">
+                    <div class="min-w-0">
+                        <p class="text-[12px] font-medium">Sampul dari data online</p>
+                        <button id="coverRemove" type="button"
+                            class="text-[12px] text-muted underline underline-offset-2">Hapus sampul</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full">
+                    <span id="submitLabel">Simpan Buku</span>
+                </button>
+            </form>
+        </section>
+
+        <section aria-labelledby="listHeading" class="min-w-0">
+            <div class="flex items-baseline justify-between gap-3">
+                <h2 id="listHeading" class="font-serif text-xl leading-tight">Daftar Buku</h2>
+                <p id="resultCount" class="text-xs tabular-nums text-faint"></p>
+            </div>
+
+            <div id="filterRow" class="mt-4 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_10.5rem_8.5rem]">
+                <div class="relative">
+                    <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                        aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m20 20-3.6-3.6" />
+                    </svg>
+                    <input id="search" type="search" class="field pl-9" placeholder="Cari judul, penulis, atau ISBN"
+                        autocomplete="off">
+                </div>
+                <div class="grid grid-cols-2 gap-2.5 sm:contents">
+                    <select id="filterCategory" class="field cursor-pointer" aria-label="Filter kategori">
+                        <option value="">Semua kategori</option>
+                    </select>
+                    <select id="filterShelf" class="field cursor-pointer" aria-label="Filter rak">
+                        <option value="">Semua rak</option>
+                    </select>
+                </div>
+            </div>
+
+            <ul id="bookList" class="mt-2 divide-y divide-line"></ul>
+
+            <div id="emptyState" hidden
+                class="mt-6 rounded-xl border border-dashed border-line-strong px-6 py-14 text-center sm:py-16">
+                <p class="font-serif text-lg">Katalog masih kosong</p>
+                <p class="mx-auto mt-1.5 max-w-xs text-[13px] leading-relaxed text-muted">Pindai ISBN buku pertama, atau
+                    tambahkan datanya secara manual lewat formulir.</p>
+            </div>
+
+            <div id="noResult" hidden
+                class="mt-6 rounded-xl border border-dashed border-line-strong px-6 py-12 text-center">
+                <p class="text-sm font-medium">Tidak ada buku yang cocok</p>
+                <p class="mx-auto mt-1.5 max-w-xs text-[13px] leading-relaxed text-muted">Coba kata kunci lain, atau
+                    bersihkan filter yang sedang aktif.</p>
+                <button id="clearFilters" type="button" class="btn btn-ghost btn-sm mt-4">Bersihkan filter</button>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-t border-line bg-surface">
+        <div class="mx-auto max-w-6xl px-5 py-6 sm:px-8">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="max-w-md">
+                    <p class="text-[12px] leading-relaxed text-faint">Data hanya tersimpan di browser perangkat ini.
+                        Ekspor berkala sebagai cadangan sebelum membersihkan data browsing.</p>
+                </div>
+
+                <div class="flex shrink-0 items-center gap-2">
+                    <button id="exportButton" type="button" class="btn btn-ghost btn-sm">Ekspor JSON</button>
+                    <label class="btn btn-ghost btn-sm">
+                        <input id="importInput" type="file" accept="application/json,.json" class="sr-only">
+                        Impor JSON
+                    </label>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div id="sheetScrim" class="sheet-scrim" hidden></div>
+
+    <div id="actionBar" class="action-bar">
+        <button id="actionScan" type="button" class="action-primary">
+            <svg class="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                stroke-linecap="round" aria-hidden="true">
+                <path d="M4 6v12M8 6v12M12 6v12M16 6v12M20 6v12" />
+            </svg>
+            Pindai ISBN
+        </button>
+        <button id="actionManual" type="button" class="action-secondary">Tambah manual</button>
+    </div>
+
+    <dialog id="scanDialog" class="scan-dialog" aria-labelledby="scanTitle">
+        <div class="scan-shell">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 id="scanTitle" class="font-serif text-lg leading-tight">Pindai ISBN</h2>
+                    <p id="scanStatus" class="mt-0.5 text-[12px] leading-relaxed text-faint"></p>
+                </div>
+                <button type="button" class="icon-btn" data-scan="close" aria-label="Tutup pemindai">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+                        aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18" />
+                    </svg>
+                </button>
+            </div>
+
+            <div id="scanStage" class="scan-stage" data-tone="neutral">
+                <div id="scanReader" class="scan-reader"></div>
+                <div class="scan-guide" aria-hidden="true"></div>
+
+                <div class="scan-panels">
+                    <div data-panel="boot" class="scan-panel" hidden>
+                        <span class="spinner" aria-hidden="true"></span>
+                        <p id="bootTitle" class="scan-panel-title"></p>
+                        <p id="bootText" class="scan-panel-text"></p>
+                    </div>
+
+                    <div data-panel="blocked" class="scan-panel" hidden>
+                        <p id="blockedTitle" class="scan-panel-title"></p>
+                        <p id="blockedText" class="scan-panel-text"></p>
+                        <div class="scan-panel-actions">
+                            <button id="blockedRetry" type="button" class="btn btn-ghost btn-sm" data-scan="retry">Coba
+                                lagi</button>
+                            <button type="button" class="btn btn-ghost btn-sm" data-scan="manual">Ketik manual</button>
+                        </div>
+                    </div>
+
+                    <div data-panel="flash" class="scan-panel" hidden>
+                        <p class="scan-panel-label">ISBN terbaca</p>
+                        <p id="flashIsbn" class="scan-isbn"></p>
+                    </div>
+
+                    <div data-panel="busy" class="scan-panel" hidden>
+                        <span class="spinner" aria-hidden="true"></span>
+                        <p class="scan-panel-title">Mencari data buku</p>
+                        <p id="busyIsbn" class="scan-panel-text"></p>
+                    </div>
+
+                    <div data-panel="notice" class="scan-panel" hidden>
+                        <p id="noticeTitle" class="scan-panel-title"></p>
+                        <p id="noticeText" class="scan-panel-text"></p>
+                        <div class="scan-panel-actions">
+                            <button type="button" class="btn btn-ghost btn-sm" data-scan="retry">Pindai lagi</button>
+                            <button type="button" class="btn btn-ghost btn-sm" data-scan="manual">Lengkapi
+                                manual</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="cameraBar" class="camera-bar" hidden>
+                <select id="cameraSelect" class="field field-compact" aria-label="Pilih kamera"></select>
+                <button id="torchButton" type="button" class="btn btn-ghost btn-sm" aria-pressed="false"
+                    hidden>Lampu</button>
+            </div>
+
+            <div class="flex items-center justify-center gap-2">
+                <label class="btn btn-ghost btn-sm">
+                    <input id="scanFile" type="file" accept="image/*" class="sr-only">
+                    Unggah foto barcode
+                </label>
+                <button type="button" class="btn btn-ghost btn-sm" data-scan="manual">Ketik manual</button>
+            </div>
+        </div>
+    </dialog>
+
+    <template id="bookRowTemplate">
+        <li class="book-row flex gap-4 py-4">
+            <span data-slot="spine" class="book-spine" aria-hidden="true">
+                <img data-slot="cover" alt="" referrerpolicy="no-referrer" hidden>
+                <span data-slot="initial"></span>
+            </span>
+            <div class="min-w-0 flex-1">
+                <div class="flex items-start justify-between gap-3">
+                    <h3 data-slot="title" class="text-[15px] font-medium leading-snug break-words"></h3>
+                    <div data-slot="actions" class="flex shrink-0 items-center gap-0.5">
+                        <button type="button" data-action="edit" title="Ubah" class="icon-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                            </svg>
+                        </button>
+                        <button type="button" data-action="delete" title="Hapus" class="icon-btn icon-btn-danger">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4 7h16" />
+                                <path d="M9 7V5h6v2" />
+                                <path d="M6.5 7 7.5 20h9L17.5 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <p data-slot="meta" class="mt-0.5 text-[13px] text-muted"></p>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <span data-slot="category" class="chip"></span>
+                    <span data-slot="isbn" class="text-[11px] tabular-nums tracking-wide text-faint"></span>
+                </div>
+                <div data-slot="confirm" class="mt-3 flex flex-wrap items-center gap-2">
+                    <span class="text-[13px] text-danger">Hapus buku ini dari katalog?</span>
+                    <button type="button" data-action="confirm-delete" class="btn btn-danger btn-sm">Ya, hapus</button>
+                    <button type="button" data-action="cancel-delete" class="btn btn-ghost btn-sm">Batal</button>
+                </div>
+            </div>
+        </li>
+    </template>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <script>
+        if (location.protocol === "file:") document.querySelector("#protocolNotice").hidden = false;
+    </script>
+    <script type="module" src="app.js"></script>
+</body>
+
+</html>
