@@ -216,6 +216,47 @@ function spineTone(seed) {
   return hash % SPINE_TONES;
 }
 
+function openLibraryCover(isbn) {
+  return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false` : "";
+}
+
+function coverCandidates(book) {
+  return [book.coverUrl, openLibraryCover(book.isbn)].filter(Boolean);
+}
+
+function googleBooksUrl(isbn) {
+  return isbn ? `https://books.google.com/books?vid=ISBN${isbn}` : "";
+}
+
+function loadCover(image, candidates, { onReady, onEmpty }) {
+  let index = 0;
+
+  const reveal = () => {
+    image.hidden = false;
+    onReady();
+  };
+
+  const next = () => {
+    if (index >= candidates.length) {
+      image.removeAttribute("src");
+      image.hidden = true;
+      onEmpty();
+      return;
+    }
+
+    const url = candidates[index];
+    index += 1;
+
+    image.onload = reveal;
+    image.onerror = next;
+    image.src = url;
+
+    if (image.complete && image.naturalWidth > 0) reveal();
+  };
+
+  next();
+}
+
 function setSheet(open) {
   state.sheetOpen = open;
   dom.formSheet.toggleAttribute("data-open", open);
@@ -231,10 +272,24 @@ function syncSheetAccess() {
 }
 
 function renderCoverPreview() {
-  const hasCover = Boolean(state.coverUrl);
-  dom.coverPreview.hidden = !hasCover;
-  if (hasCover) dom.coverImage.src = state.coverUrl;
-  else dom.coverImage.removeAttribute("src");
+  const isbn = normalizeIsbn(dom.isbn.value);
+  const derived = isbn && inspectIsbn(isbn).valid ? openLibraryCover(isbn) : "";
+  const candidates = [state.coverUrl, derived].filter(Boolean);
+
+  if (candidates.length === 0) {
+    dom.coverPreview.hidden = true;
+    dom.coverImage.removeAttribute("src");
+    return;
+  }
+
+  loadCover(dom.coverImage, candidates, {
+    onReady: () => {
+      dom.coverPreview.hidden = false;
+    },
+    onEmpty: () => {
+      dom.coverPreview.hidden = true;
+    },
+  });
 }
 
 function renderLookupExtras() {
@@ -455,15 +510,25 @@ function createRow(book) {
   spine.dataset.tone = String(spineTone(book.title));
   initial.textContent = [...book.title][0]?.toUpperCase() ?? "?";
 
-  if (book.coverUrl) {
-    cover.addEventListener("error", () => {
-      cover.hidden = true;
-      initial.hidden = false;
-    }, { once: true });
-    cover.src = book.coverUrl;
-    cover.hidden = false;
-    initial.hidden = true;
+  const link = googleBooksUrl(book.isbn);
+  if (link) {
+    spine.href = link;
+    spine.target = "_blank";
+    spine.rel = "noopener noreferrer";
+    spine.setAttribute("aria-label", `Buka data ${book.title} di Google Books`);
+  } else {
+    spine.removeAttribute("href");
+    spine.setAttribute("aria-hidden", "true");
   }
+
+  loadCover(cover, coverCandidates(book), {
+    onReady: () => {
+      initial.hidden = true;
+    },
+    onEmpty: () => {
+      initial.hidden = false;
+    },
+  });
 
   const armed = book.id === state.armedDeleteId;
   slot("actions").hidden = armed;
@@ -851,6 +916,7 @@ function clearLookup() {
 dom.form.addEventListener("submit", handleSubmit);
 dom.title.addEventListener("input", clearTitleError);
 dom.isbn.addEventListener("input", renderDuplicateNotice);
+dom.isbn.addEventListener("blur", renderCoverPreview);
 dom.category.addEventListener("change", () => {
   state.categoryTouched = true;
   renderLookupExtras();

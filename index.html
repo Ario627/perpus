@@ -15,7 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style type="text/tailwindcss">
-        @theme {
+        @theme static {
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Newsreader", ui-serif, Georgia, serif;
   --color-paper: #f6f4ef;
@@ -337,10 +337,10 @@
 
     <template id="bookRowTemplate">
         <li class="book-row flex gap-4 py-4">
-            <span data-slot="spine" class="book-spine" aria-hidden="true">
+            <a data-slot="spine" class="book-spine">
                 <img data-slot="cover" alt="" referrerpolicy="no-referrer" hidden>
                 <span data-slot="initial"></span>
-            </span>
+            </a>
             <div class="min-w-0 flex-1">
                 <div class="flex items-start justify-between gap-3">
                     <h3 data-slot="title" class="text-[15px] font-medium leading-snug break-words"></h3>

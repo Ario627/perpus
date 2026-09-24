@@ -49,6 +49,17 @@ Barcode yang terbaca tapi tidak lolos checksum tidak menutup kamera. Pemindai te
 dan menampilkan penanda peringatan, jadi petugas cukup menggeser posisi tanpa membuka ulang
 dialog.
 
+## Sampul buku
+
+Sampul diambil dari data API saat pencarian berhasil. Kalau penyedia tidak menyediakan
+gambar, aplikasi mencoba sampul Open Library berdasarkan ISBN. Kalau keduanya tidak ada,
+sampul diganti inisial judul dengan warna yang diturunkan dari judul itu sendiri, jadi setiap
+baris tetap punya penanda visual yang berbeda.
+
+Menekan sampul membuka halaman buku tersebut di Google Books. Tautan hanya aktif kalau buku
+punya ISBN, karena alamatnya dibentuk dari ISBN. Buku tanpa ISBN tetap menampilkan sampul
+inisial, tapi tidak bisa ditekan.
+
 ## Kunci Google Books API
 
 **Petugas perpustakaan tidak perlu mengurus kunci API sama sekali.** Aplikasi tetap berjalan
